@@ -52,18 +52,15 @@ void loop() {
     float ecValue = getEc();
     float temp = getTempSensor();
 
-    Serial.println("");
-    getOxygenSensor();
-
-    Serial.print("The temperature is: ");
-    Serial.println(temp);
-
-    Serial.print("EC:");
-    Serial.print(ecValue, 2);  // Print the ecValue with 2 decimal places
-    Serial.println(" ms/cm");
-
-    Serial.print("pH:");
-    Serial.println(phValue,2);
+    // Print the sensor data in a CSV format to serial monitor
+    Serial.print(temp);
+    Serial.print(",");
+    Serial.print(ecValue);
+    Serial.print(",");
+    Serial.print(phValue);
+    Serial.print(",");
+    Serial.print(doValue);
+    Serial.println(); // New line at the end
     
     delay(2000);
 }
