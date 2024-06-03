@@ -19,10 +19,10 @@ def insert_sensor_data(temperature, ec, ph, do):
                                      (%s, %s, %s, %s, NOW()), 
                                      (%s, %s, %s, %s, NOW()), 
                                      (%s, %s, %s, %s, NOW())"""
-            data = (1, 1, 'Temperature', temperature,
-                    1, 1, 'Conductivity', ec,
-                    1, 1, 'pH', ph,
-                    1, 1, 'Oxygen', do)
+            data = (1, 3, 'Temperature', temperature,
+                    1, 3, 'Conductivity', ec,
+                    1, 3, 'pH', ph,
+                    1, 3, 'Oxygen', do)
             cursor.execute(insert_query, data)
             connection.commit()
             print("Record inserted successfully into Sensors table")
@@ -37,7 +37,7 @@ def insert_sensor_data(temperature, ec, ph, do):
             print("MySQL connection is closed")
 
 if __name__ == '__main__':
-    ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+    ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)  # /dev/ttyUSB0 (for personal)
     ser.reset_input_buffer()
 
     while True:
