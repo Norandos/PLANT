@@ -29,7 +29,7 @@ float voltageEC,ecValue;
 
 DFRobot_EC ec;
 
-uint8_t Temperaturet;
+uint8_t Temperature;
 uint16_t ADC_Raw;
 uint16_t ADC_Voltage;
 uint16_t DO;
@@ -108,7 +108,8 @@ void getOxygenSensor(){
 
     //Serial.println("ADC RAW:\t" + String(ADC_Raw) + "\t");
     //Serial.print("ADC Voltage:\t" + String(ADC_Voltage) + "\t");
-    Serial.println("DO:\t" + String(readDO(ADC_Voltage, Temperaturet)) + "\t");
+    //Serial.println("DO:\t" + String(readDO(ADC_Voltage, Temperaturet)) + "\t");
+    return String(readD0(ADC_Voltage, Temperature));
 }
 
 int16_t readDO(uint32_t voltage_mv, uint8_t temperature_c)
