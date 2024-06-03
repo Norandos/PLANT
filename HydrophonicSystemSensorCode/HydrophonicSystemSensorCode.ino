@@ -1,3 +1,4 @@
+
 #include "DFRobot_PH.h"
 #include <EEPROM.h>
 #include <OneWire.h>
@@ -32,14 +33,17 @@ DFRobot_EC ec;
 uint8_t Temperature;
 uint16_t ADC_Raw;
 uint16_t ADC_Voltage;
-uint16_t DO;
+uint16_t doValue;
 
 const uint16_t DO_Table[41] = {
     14460, 14220, 13820, 13440, 13090, 12740, 12420, 12110, 11810, 11530,
     11260, 11010, 10770, 10530, 10300, 10080, 9860, 9660, 9460, 9270,
     9080, 8900, 8730, 8570, 8410, 8250, 8110, 7960, 7820, 7690,
     7560, 7430, 7300, 7180, 7070, 6950, 6840, 6730, 6630, 6530, 6410};
-    
+
+
+bool firstReading = true; // Flag to indicate the first reading
+
 void setup() {
     Serial.begin(9600);  
     ph.begin();
@@ -47,10 +51,18 @@ void setup() {
     ec.begin();
 }
 
+
 void loop() {
     float phValue = getpH();
     float ecValue = getEc();
     float temp = getTempSensor();
+    float doValue = getOxygenSensor();
+
+            // Skip the first reading
+    if (firstReading) {
+        firstReading = false;
+        return; // Skip sending the data
+    }
 
     // Print the sensor data in a CSV format to serial monitor
     Serial.print(temp);
@@ -62,8 +74,12 @@ void loop() {
     Serial.print(doValue);
     Serial.println(); // New line at the end
     
-    delay(2000);
-}
+    // Wait for 30 minutes (30 * 60 * 1000 milliseconds)
+    //NOTE: Delay is a blocking function and will prevent any other code from being executed. Only using it for simplicity. If more features of the Arduino are required
+    //      it is recommended to change to a non-blocking delay form.
+    delay(30 * 60 * 1000UL);
+    //delay(2000);
+    }
 
 float getEc(){
   static unsigned long timepoint = millis();
@@ -101,15 +117,15 @@ float getTempSensor(){
     return temp;
 }
 
-void getOxygenSensor(){
-    uint8_t Temperature = getTempSensor;
+float getOxygenSensor(){
+    uint8_t Temperature = getTempSensor();
     ADC_Raw = analogRead(OX_PIN);
     ADC_Voltage = uint32_t(VREF) * ADC_Raw / ADC_RES;
 
     //Serial.println("ADC RAW:\t" + String(ADC_Raw) + "\t");
     //Serial.print("ADC Voltage:\t" + String(ADC_Voltage) + "\t");
     //Serial.println("DO:\t" + String(readDO(ADC_Voltage, Temperaturet)) + "\t");
-    return String(readD0(ADC_Voltage, Temperature));
+    return readDO(ADC_Voltage, Temperature);
 }
 
 int16_t readDO(uint32_t voltage_mv, uint8_t temperature_c)
