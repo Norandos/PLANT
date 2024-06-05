@@ -118,15 +118,15 @@ float getTempSensor(){
 }
 
 float getOxygenSensor(){
-    uint8_t Temperature = getTempSensor();
+    float temperature = getTempSensor();
     ADC_Raw = analogRead(OX_PIN);
     ADC_Voltage = uint32_t(VREF) * ADC_Raw / ADC_RES;
 
-    //Serial.println("ADC RAW:\t" + String(ADC_Raw) + "\t");
-    //Serial.print("ADC Voltage:\t" + String(ADC_Voltage) + "\t");
-    //Serial.println("DO:\t" + String(readDO(ADC_Voltage, Temperaturet)) + "\t");
-    return readDO(ADC_Voltage, Temperature);
+    // Convert ADC voltage to DO concentration
+    float do_concentration = readDO(ADC_Voltage, temperature); // μg/L
+    return do_concentration/1000; // mg/L
 }
+
 
 int16_t readDO(uint32_t voltage_mv, uint8_t temperature_c)
 {
