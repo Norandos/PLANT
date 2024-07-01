@@ -9,7 +9,7 @@
 #define PH_PIN A1
 #define EC_PIN1 A3
 #define OX_PIN A4
-#define ONE_WIRE_BUS 4 // Data wire is plugged into pin 2 on the Arduino
+#define ONE_WIRE_BUS 4 // Data wire is plugged into digital pin 4 on the Arduino
 #define VREF    5000//VREF(mv)
 #define ADC_RES 1024//ADC Resolution
 #define TWO_POINT_CALIBRATION 1
@@ -29,7 +29,6 @@ uint32_t rawOxygenValue;
 float voltageEC,ecValue;
 
 DFRobot_EC ec;
-
 uint8_t Temperature;
 uint16_t ADC_Raw;
 uint16_t ADC_Voltage;
@@ -58,7 +57,7 @@ void loop() {
     float temp = getTempSensor();
     float doValue = getOxygenSensor();
 
-            // Skip the first reading
+    // Skip the first reading to avoid faulty insertion of '0.00' of Conductivity and pH.
     if (firstReading) {
         firstReading = false;
         return; // Skip sending the data
@@ -107,7 +106,7 @@ float getpH(){
         phValue = ph.readPH(voltagepH,temperature);  // convert voltage to pH with temperature compensation
         
     }
-    ph.calibration(voltagepH,temperature);           // calibration process by Serail CMD
+    //ph.calibration(voltagepH,temperature);           // calibration process by Serail CMD
     return phValue;
 }
 
@@ -121,8 +120,7 @@ float getOxygenSensor(){
     float temperature = getTempSensor();
     ADC_Raw = analogRead(OX_PIN);
     ADC_Voltage = uint32_t(VREF) * ADC_Raw / ADC_RES;
-
-    // Convert ADC voltage to DO concentration
+    // Convert ADC voltage to dissolved Oxygen concentration
     float do_concentration = readDO(ADC_Voltage, temperature); // μg/L
     return do_concentration/1000; // mg/L
 }
