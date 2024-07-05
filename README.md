@@ -2,7 +2,9 @@
 This Document contains information on how to operate the PLANT - Hydroponic System. How to access and develop the Raspberry more. In case you are looking at this document from the SSO drive. Please go to Github: https://github.com/Norandos/PLANT and clone this repository and continue working on it. Do not use the SSO drive for version control, as this is a risky method.
 
 ## Connecting to the Raspberry
-The best way of accessing the Raspberry in its current state, is by using a VNC Viewer. This can be done through either an Ethernet Cable, or by setting up a mobile hotspot. If one uses an Ethernet cable to setup the connection, one has to enable Network sharing on the device the user wants to operate the Raspberry from, as demonstrated in the image below. ![controlpanel](https://hackmd.io/_uploads/HJtf1DrvA.png)
+The best way of accessing the Raspberry in its current state, is by using a VNC Viewer. This can be done through either an Ethernet Cable, or by setting up a mobile hotspot. If one uses an Ethernet cable to setup the connection, one has to enable Network sharing on the device the user wants to operate the Raspberry from, as demonstrated in the image below.
+
+![image](IMAGES/controlpanel.bmp)
 
 The other method is using a mobile hotspot. One has to then use the LED touchscreen interface of the Raspberry to select what network to connect to. One could also simply plug a (wireless) mouse and/or key board into the Raspberry, as there are ports available. 
 
@@ -20,13 +22,16 @@ ssh plant@raspberry
 Using an SSH connection is only really recommended for simple operational activities, to restart the servers for example, or change configurations. 
 
 ### VNC
-When performing more complex operations, or for accessing other features of the Raspbian OS, it is recommended to use a VNC viewer. In this case RealVNC viewer was used. ![afbeelding](https://hackmd.io/_uploads/HJlSfvSPR.png)
+When performing more complex operations, or for accessing other features of the Raspbian OS, it is recommended to use a VNC viewer. In this case RealVNC viewer was used.
 With this tool one can remotely access the Raspberry's Desktop OS. Here too, one can use the IP of 'raspberry' when using an Ethernet connection.
+
+![image](IMAGES/RealVNC.bmp)
 
 ## The Circuit
 The code for the Arduino Nano's is uniform. They all operate with the same code. The sensors that are connected to the Arduinos have to be calibrated first. For this the documentation of the supplier is recommended. To execute the calibration, one has to send commands to the arduino through the serial monitor. The exact wiring can be found in the diagram below. In this diagram all the red cables are for supplying 5V, the black wires are neutral. And the yellow cables are the data cables, 3 going to analog ports, while 1 goes to a digital with a pull-up resistor of 4.7K. This diagram also shows the different sensors used. Refer to their documentation for guidance on setting up.
 
-![exact layout](https://hackmd.io/_uploads/S15kYPSwA.png)
+![image](IMAGES/circuit.bmp)
+
 
 ## The Arduino Code ([HydrophonicSystemSensorCode.ino](https://github.com/Norandos/PLANT/blob/main/HydrophonicSystemSensorCode/HydrophonicSystemSensorCode.ino)
 This code is designed to measure and report pH, electrical conductivity (EC), temperature, and dissolved oxygen (DO) levels using various sensors. The program initializes and reads data from these sensors, performing necessary calibrations and compensation for accurate measurements. The results are printed in a CSV format to the serial monitor at regular intervals.
@@ -80,7 +85,7 @@ If one wants to change the code, one has to simply make changes to the code and 
 > 
 > There is a service running named DataParsing that starts the DataParsing.py code upon boot up. If one needs to debug the python code, one has to open the code in PLANT/home/DataParsing.py with an editor and execute it in a terminal, this will give more information on which data gets sent to the database.
 
-![image](https://hackmd.io/_uploads/SkrORvBPR.png)
+![image](IMAGES/restart_service.bmp)
 
 
 This Python script reads sensor data from multiple serial ports, parses it, and inserts it into a MySQL database. The data includes temperature, electrical conductivity (EC), pH, and dissolved oxygen (DO) levels. The script uses multithreading to handle multiple ports simultaneously.
@@ -232,7 +237,7 @@ INSERT INTO Sensors (SystemID, SensorTypeID, Reading, Time) VALUES (1, 4, 8.6, N
 ```
 
 This structure ensures a normalized and efficient database design, allowing for the proper storage and retrieval of sensor data related to various systems and sensor types.
-![image](https://hackmd.io/_uploads/Bkym8wBPR.png)
+![image](IMAGES/database.bmp)
 
 
 ## Dashboard
