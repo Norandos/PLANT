@@ -5,6 +5,7 @@
 #include <DallasTemperature.h>
 #include <Arduino.h>
 #include "DFRobot_EC.h"
+#include <RTClib.h>
 
 #define PH_PIN A1
 #define EC_PIN1 A3
@@ -29,7 +30,7 @@ uint32_t rawOxygenValue;
 float voltageEC,ecValue;
 
 DFRobot_EC ec;
-uint8_t Temperature;
+uint8_t Temperature; // not needed
 uint16_t ADC_Raw;
 uint16_t ADC_Voltage;
 uint16_t doValue;
@@ -43,54 +44,99 @@ const uint16_t DO_Table[41] = {
 
 bool firstReading = true; // Flag to indicate the first reading
 
+#define PUMP1_START_HOUR 8
+#define PUMP2_START_HOUR 16
+#define PUMP_DURATION_MINUTES 30
+
+#define LIGHT_START_HOUR 6
+#define LIGHT_END_HOUR 18
+
+const int pumpPins[] = {2, 3, 5};         // work on the pinnnage! determine which arduino will use what pins, put it there, and its good to go
+const int lightPins[] = {6, 7, 8, 9, 10, 11, 12, A0, A2, A5, A6, A7};
+
+bool pumpsOn = false;
+bool lightsOn = false;
+
+int hourOfDay = 0; // if not using a real time clock module, this is the easiest solution to simulate day-night-cycle.
+int minuteOfHour = 0; // same as above
+
+unsigned long elapsedMillis = 0;
+const unsigned long minuteInterval = 60000; // 60,000 milliseconds = 1 minute
+
 void setup() {
-    Serial.begin(9600);  
     ph.begin();
     sensors.begin();//Temperature sensor
     ec.begin();
+    Serial.begin(9600);
 }
 
-
 void loop() {
-    float phValue = getpH();
-    float ecValue = getEc();
-    float temp = getTempSensor();
-    float doValue = getOxygenSensor();
+    elapsedMillis = millis() / minuteInterval;
 
-    // Skip the first reading to avoid faulty insertion of '0.00' of Conductivity and pH.
-    if (firstReading) {
+    hourOfDay = (elapsedMillis / 60) % 24; // Hours (0-23)
+    minuteOfHour = elapsedMillis % 60; // Minutes (0-59)
+
+    // --- Pump Control Logic ---
+    bool inFirstWindow  = hourOfDay == PUMP1_START_HOUR  && minuteOfHour < PUMP_DURATION_MINUTES;
+    bool inSecondWindow = hourOfDay == PUMP2_START_HOUR  && minuteOfHour < PUMP_DURATION_MINUTES;
+
+    if ((inFirstWindow || inSecondWindow) && !pumpsOn) {
+      pumpsOn = true;
+      //if the pins are determined, uncomment the part below
+      //for (int i = 0; i < 3; i++) digitalWrite(pumpPins[i], HIGH);
+    }
+    else if (!inFirstWindow && !inSecondWindow && pumpsOn) {
+      pumpsOn = false;
+      //if the pins are determined, uncomment the part below
+      //for (int i = 0; i < 3; i++) digitalWrite(pumpPins[i], LOW);
+    }
+
+    // --- Light Control Logic ---
+    if (hourOfDay >= LIGHT_START_HOUR && hourOfDay < LIGHT_END_HOUR && !lightsOn) {
+        lightsOn = true;
+        // Uncomment the part below if pins are determined
+        // for (int i = 0; i < 12; i++) digitalWrite(lightPins[i], HIGH);
+    }
+    else if ((hourOfDay < LIGHT_START_HOUR || hourOfDay >= LIGHT_END_HOUR) && lightsOn) {
+        lightsOn = false;
+        // Uncomment the part below if pins are determined
+        // for (int i = 0; i < 12; i++) digitalWrite(lightPins[i], LOW);
+    }
+
+    // --- Data Sending Logic ---
+    if (minuteOfHour == 0 || minuteOfHour == 30){ // Every half an hour
+      float ph = getpH();
+      float ec = getEc();
+      float temp = getTempSensor();
+      float doVal = getOxygenSensor();
+
+      // Skip first reading (first data contains also debugging lines stream)
+      if (firstReading) {
         firstReading = false;
-        return; // Skip sending the data
-    }
+      } else {
+        Serial.print(temp); Serial.print(",");
+        Serial.print(ec);   Serial.print(",");
+        Serial.print(ph);   Serial.print(",");
+        Serial.print(doVal); Serial.println();
+      }
 
-    // Print the sensor data in a CSV format to serial monitor
-    Serial.print(temp);
-    Serial.print(",");
-    Serial.print(ecValue);
-    Serial.print(",");
-    Serial.print(phValue);
-    Serial.print(",");
-    Serial.print(doValue);
-    Serial.println(); // New line at the end
-    
-    // Wait for 30 minutes (30 * 60 * 1000 milliseconds)
-    //NOTE: Delay is a blocking function and will prevent any other code from being executed. Only using it for simplicity. If more features of the Arduino are required
-    //      it is recommended to change to a non-blocking delay form.
-    delay(30 * 60 * 1000UL);
-    //delay(2000);
+      delay(60000); // Prevent re-reading during the same minute
     }
+}
 
 float getEc(){
   static unsigned long timepoint = millis();
   int temperature;
     if(millis()-timepoint>1000U){                  //time interval: 1s
         timepoint = millis();
-                
+
         temperature = getTempSensor();          // read your temperature sensor to execute temperature compensation
         voltageEC = analogRead(EC_PIN1)/1024.0*5000;   // read the voltage
-        ecValue =  ec.readEC(voltageEC,temperature);  // convert voltage to EC with temperature compensation
+        //ecValue =  ec.readEC(voltageEC,temperature);
+        ecValue =  ec.readEC(voltageEC, temperature);  // convert voltage to EC with temperature compensation
+        // IMPORTANT INFO! if temperature sensor is not connected, the results may be different than in reality - change it into a constant value instead..
     }
-   
+
     //ec.calibration(voltageEC,temperature);          // calibration process by Serail CMD
     return ecValue;
 }
@@ -100,11 +146,12 @@ float getpH(){
   int temperature;
     if(millis()-timepoint>1000U){                  //time interval: 1s
         timepoint = millis();
-        
+
         temperature = getTempSensor();         // read your temperature sensor to execute temperature compensation
         voltagepH = analogRead(PH_PIN)/1024.0*5000;  // read the voltage
-        phValue = ph.readPH(voltagepH,temperature);  // convert voltage to pH with temperature compensation
-        
+        phValue = ph.readPH(voltagepH, temperature);  // convert voltage to pH with temperature compensation
+        // IMPORTANT INFO! if temperature sensor is not connected, the results may be different than in reality - change it into a constant value instead.
+
     }
     //ph.calibration(voltagepH,temperature);           // calibration process by Serail CMD
     return phValue;
@@ -122,6 +169,7 @@ float getOxygenSensor(){
     ADC_Voltage = uint32_t(VREF) * ADC_Raw / ADC_RES;
     // Convert ADC voltage to dissolved Oxygen concentration
     float do_concentration = readDO(ADC_Voltage, temperature); // μg/L
+    // IMPORTANT INFO! if temperature sensor is not connected, the results may be different than in reality - change it into a constant value instead.
     return do_concentration/1000; // mg/L
 }
 

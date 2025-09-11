@@ -36,7 +36,7 @@ The code for the Arduino Nano's is uniform. They all operate with the same code.
 ## The Arduino Code ([HydrophonicSystemSensorCode.ino](https://github.com/Norandos/PLANT/blob/main/HydrophonicSystemSensorCode/HydrophonicSystemSensorCode.ino)
 This code is designed to measure and report pH, electrical conductivity (EC), temperature, and dissolved oxygen (DO) levels using various sensors. The program initializes and reads data from these sensors, performing necessary calibrations and compensation for accurate measurements. The results are printed in a CSV format to the serial monitor at regular intervals.
 
-If one wants to change the code, one has to simply make changes to the code and then use an IDE (Like Arduino IDE) to upload hte code to an arduino. through the micro-USB cable. (So either with the Raspberry or through your own device)
+If one wants to change the code, one has to simply make changes to the code and then use an IDE (Like Arduino IDE) to upload the code to an arduino through the micro-USB cable. (So either with the Raspberry or through your own device)
 
 #### Hardware and Libraries:
 - **Libraries**:
@@ -50,6 +50,12 @@ If one wants to change the code, one has to simply make changes to the code and 
   - `OX_PIN (A4)`: Dissolved oxygen sensor input.
   - `ONE_WIRE_BUS (4)`: Temperature sensor data line.
 
+To use the arduinos as a lighting and pumps controller as well, a skeleton of the code was prepared, with
+- `pumpPins[]` 
+- `lightPins[]`
+
+Respectively, which are used to determine, on which pins should the arduino give power, to turn on the lights/pumps.
+
 #### Key Definitions:
 - **Voltage Reference (VREF)**: 5000mV.
 - **ADC Resolution (ADC_RES)**: 1024.
@@ -60,18 +66,23 @@ If one wants to change the code, one has to simply make changes to the code and 
 
 #### Workflow:
 1. **Initialization**:
-   - Serial communication starts at 9600 baud.
    - Sensors are initialized.
+   - Serial communication starts at 9600 baud.
 
 2. **Loop**:
-   - Reads sensor values:
-     - `getpH()`: Reads and compensates pH value.
-     - `getEc()`: Reads and compensates EC value.
-     - `getTempSensor()`: Reads temperature value.
-     - `getOxygenSensor()`: Reads and compensates DO value.
-   - Skips the first reading to avoid faulty data.
-   - Prints the sensor data in CSV format to the serial monitor.
-   - Waits for 30 minutes before the next reading (blocking delay).
+   - Calculates current time (using millis(), based on arduino uptime)
+   - Checks, whether or not, to turn on/off the lights/water pumps.
+   - Checkes if measurements should be performed, if so: 
+      - Reads sensor values:
+         - Skips the first reading to avoid faulty data.
+         - `getpH()`: Reads and compensates pH value.
+         - `getEc()`: Reads and compensates EC value.
+         - `getTempSensor()`: Reads temperature value.
+         - `getOxygenSensor()`: Reads and compensates DO value.
+      - Prints the sensor data in CSV format to the serial monitor.
+      - Waits for 1 minute before the next loop (blocking delay).
+
+**Important Notice** - `millis()` is a built-in function, which will overflow it's value after approximately 50 days of arduino uptime. However, this is not expected to affect system behavior due to regular lab visits and resets. Even if that was to happen, the resulting "time reset" will not affect the system operations.
 
 #### Functions:
 - **getEc()**: Measures EC, compensates with temperature.
@@ -79,6 +90,18 @@ If one wants to change the code, one has to simply make changes to the code and 
 - **getTempSensor()**: Reads temperature using the Dallas temperature sensor.
 - **getOxygenSensor()**: Measures dissolved oxygen concentration, converts ADC voltage to DO concentration.
 - **readDO(voltage_mv, temperature_c)**: Calculates DO concentration based on voltage and temperature, supporting two-point calibration.
+
+#### Constants:
+- Non User-Defined:
+   - **int** `hourOfDay` and **int** `minuteOfHour` - for storing time (automatic).
+- User-Defined
+   - `PUMP1_START_HOUR` - Define hour, at which the pumps should start working.
+   - `PUMP2_START_HOUR` - Define second hour, at which the pumps should start working.
+   - `PUMP_DURATION_MINUTES` - Define how long should the pumps be working for (<60, advised 30).
+   - `LIGHT_START_HOUR` - Define hour, at which the lights should start working.
+   - `LIGHT_END_HOUR` - Define hour, at which the lights should stop working.
+
+Example configuration is already defined for all of those, yet feel free to change those, if observations would conclude so. 
 
 ## Python Code (DataParsing.py)
 > The code is run under PLANT/home/DataParsing.py
@@ -94,7 +117,9 @@ This Python script reads sensor data from multiple serial ports, parses it, and 
 - `serial`: For reading data from serial ports.
 - `mysql.connector`: For connecting to and interacting with a MySQL database.
 - `threading`: For running multiple threads.
-- `time`: For handling timing operations.
+- `os`, `subprocess`, `shutil` and `zipfile`: For managing local files and processes.
+- `pandas`: For Excel writing.
+- `dotenv`: For Unifying managing .env files for security.
 
 #### Functions:
 1. **insert_sensor_data(cursor, temperature, ec, ph, do, level)**:
@@ -116,6 +141,17 @@ This Python script reads sensor data from multiple serial ports, parses it, and 
    - Connects to the MySQL database.
    - Continuously reads lines from the serial port, parses them, and inserts the parsed data into the database.
    - Handles connection and parsing errors, ensuring the database connection is closed properly.
+3. **update_excel_copy(temp, ec, ph, do, level)**:
+   - Updates a local excel file with the same data as the local database.
+   - If a OneDrive client is connected, synchronizes a local excel file, to connected OneDrive client
+   - Parameters: 
+     - `temperature`: Temperature reading.
+     - `ec`: Electrical conductivity reading.
+     - `ph`: pH reading.
+     - `do`: Dissolved oxygen reading.
+     - `level`: Level identifier for the data. 
+   - This solution is to make it easier to access data, even without going into the lab.
+   - Makes reacting to anything strange quicker if there's a need for that.
 
 #### Workflow:
 1. **Initialization**:
@@ -129,6 +165,7 @@ This Python script reads sensor data from multiple serial ports, parses it, and 
    - Parse the data into temperature, EC, pH, and DO values.
    - Insert the parsed data into the MySQL database using the `insert_sensor_data` function.
    - Commit the transaction to save the data in the database.
+   - Insert the parsed data into excel file database using the `update_excel_copy` function.
    - Handle any errors that occur during data parsing or database insertion.
 
 3. **Multithreading**:
@@ -239,6 +276,17 @@ INSERT INTO Sensors (SystemID, SensorTypeID, Reading, Time) VALUES (1, 4, 8.6, N
 This structure ensures a normalized and efficient database design, allowing for the proper storage and retrieval of sensor data related to various systems and sensor types.
 ![image](IMAGES/database.bmp)
 
+## OneDrive
+As stated before, to access data from any device without going into the lab, a function is prepared maintaining file synchronization between a connected account and the Raspberry. However, to prepare that, there are a few steps that need to be taken in order for this solution to work
+
+First of all, Saxion does not allow any 3rd party apps to be used on their network for security reasons. So, a non-Saxion Microsoft account has to be created (it's free) in order to log in successfully to the OneDrive client.
+
+**Steps:**
+0. If you do not intend to use the solution, simply comment out the function responsible for uploading (see `functions`)
+1. In terminal on the raspberry, make sure no one is logged in, by using `onedrive --logout`
+2. Enter `onedrive` and then log in, following the displayed instructions.
+3. Recreate simple folder structure in your account that you logged in - in the root ("main" folder) of the OneDrive, create a `Database_Copy` folder. This can be done on any device, as it's probably easier to do so than on the raspberry web browser. 
+4. Script will handle file creation and upload once it's running and data has been collected.
 
 ## Dashboard
 > To configure grafana, go to configuration file `/etc/grafana/grafana.ini`
